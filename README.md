@@ -2,7 +2,7 @@
 
 An enterprise-grade, production-quality Document Intelligence System designed to ingest Group Medical Cover (GMC) and Group Personal Accident (GPA) insurance policy documents in PDF format, understand multi-page text and table layouts, extract all required policy metadata and benefits, normalize data into a consistent QMS-compatible JSON structure, and provide evidence attribution with transparent confidence scoring.
 
-Built with **Python 3.11+**, **FastAPI**, **Pydantic v2**, **PyMuPDF**, **pdfplumber**, **RapidOCR**, **SentenceTransformers**, **FAISS**, **Google Gemini / Groq LLMs**, and a modern **Glassmorphism Web UI Dashboard**.
+Built with **Python 3.11+**, **FastAPI**, **Pydantic v2**, **PyMuPDF**, **pdfplumber**, **Tesseract OCR (pytesseract)**, **SentenceTransformers**, **FAISS**, **Google Gemini / Groq LLMs**, and a modern **Glassmorphism Web UI Dashboard**.
 
 ---
 
@@ -13,14 +13,14 @@ Built with **Python 3.11+**, **FastAPI**, **Pydantic v2**, **PyMuPDF**, **pdfplu
 - [No-Hardcoding Architecture](#-no-hardcoding-architecture)
 - [Design Decisions](#-design-decisions)
 - [System Architecture & Dataflow](#-system-architecture--dataflow)
+- [Directory Structure & Modular Separation](#-directory-structure--modular-separation)
 - [Pipeline Breakdown (4-Pass Strategy)](#-pipeline-breakdown-4-pass-strategy)
 - [OCR & Table Strategy](#-ocr--table-strategy)
 - [Confidence & Evidence Mechanism](#-confidence--evidence-mechanism)
 - [Deterministic Validation Engine](#-deterministic-validation-engine)
 - [Technology Stack & Selection Rationale](#-technology-stack--selection-rationale)
-- [Directory Structure](#-directory-structure)
 - [Setup & Installation](#-setup--installation)
-- [Environment Variables (`.env`)](#-environment-variables-env)
+- [Environment Variables (`backend/.env`)](#-environment-variables-backendenv)
 - [Running the Application](#-running-the-application)
 - [API Usage & Endpoints](#-api-usage--endpoints)
 - [QMS JSON Schema Structure](#-qms-json-schema-structure)
@@ -42,6 +42,7 @@ The goal of this system is to ingest any GMC or GPA policy document, dynamically
 ## 🌟 Key Features
 
 * **Zero Hardcoding & Generic Generalization**: Operates dynamically across diverse insurance providers, policy layouts, terms, and table formats without hardcoding insurer names, policy numbers, or expected answers.
+* **Modular Clean Architecture**: Clear separation of concerns with dedicated `backend/`, `frontend/`, `docs/`, and `outputs/` directories.
 * **4-Pass Document Extraction Pipeline**:
   1. **Pass 1 - Document Understanding**: Extracts high-level metadata (Insurer, TPA, Policyholder, Validity dates, Premium).
   2. **Pass 2 - Targeted Benefit Extraction**: Performs section & vector-retrieved extraction across Hospitalization, Maternity, Waiting Periods, Demographics, and Exclusions.
@@ -51,8 +52,7 @@ The goal of this system is to ingest any GMC or GPA policy document, dynamically
 * **OCR Fallback Engine**: Automatically detects scanned/image-heavy PDF pages (< 30 text characters) and triggers Tesseract OCR (`pytesseract`) fallback.
 * **Table-Aware Parser**: Converts PDF grid tables into LLM-friendly markdown, preserving header-column-row associations.
 * **Provider Abstraction**: Features an LLM provider layer supporting `GeminiProvider` (`google-genai`), `GroqProvider`, and an offline deterministic `MockProvider`.
-* **Automatic Output Persistence**: Saves extracted QMS JSON documents directly into a dedicated [`outputs/`](file:///e:/PDF_Extractor_medical_assignment/outputs) directory.
-* **Production-Grade API & Dashboard UI**: Exposes REST endpoints (`/api/v1/policies/extract`, `/api/v1/policies/extract/batch`, `/api/v1/health`) and an interactive glassmorphism Web UI dashboard.
+* **Automatic Output Persistence**: Saves extracted QMS JSON documents directly into the top-level [`outputs/`](file:///e:/PDF_Extractor_medical_assignment/outputs) directory (outside backend and frontend).
 
 ---
 
@@ -94,7 +94,7 @@ if filename == "1.Policy Copy.pdf":
 * **Rationale**: Absence of evidence is not evidence of exclusion. In commercial insurance QMS engines, marking an unmentioned optional benefit (e.g., LGBTQ+ coverage) as `NOT_COVERED` creates compliance liability.
 
 ### 5. Selective Hybrid OCR Fallback (< 30 Text Chars)
-* **Decision**: Evaluate native text character density per page before triggering OCR.
+* **Decision**: Evaluate native text character density per page before triggering Tesseract OCR (`pytesseract`).
 * **Rationale**: Running OCR indiscriminately on native PDFs introduces character recognition noise and adds 3–5 seconds per page. The selective threshold (< 30 chars) ensures OCR runs only on scanned image pages.
 
 ### 6. Automatic Output Persistence (`outputs/`)
@@ -110,7 +110,7 @@ flowchart TD
     A[User PDF Upload / REST API Request] --> B[Document Ingestor]
     B --> C{Native Text Available?}
     C -- Yes (Text > 30 chars) --> D[PyMuPDF / pdfplumber Native Text Extractor]
-    C -- No (Scanned / Image Page) --> E[RapidOCR Fallback Engine]
+    C -- No (Scanned / Image Page) --> E[Tesseract OCR Engine - pytesseract]
     D --> F[Table Extractor - Markdown Grid Converter]
     E --> F
     F --> G[Text Cleaner & Header/Footer Noise Remover]
@@ -128,8 +128,58 @@ flowchart TD
     end
 
     K4 --> L[QMS Normalized JSON Response]
-    L --> M[Persist to outputs/ Directory]
+    L --> M[Persist to Top-Level outputs/ Directory]
     L --> N[FastAPI REST API Response / Glassmorphism Web Dashboard]
+```
+
+---
+
+## 📁 Directory Structure & Modular Separation
+
+```text
+e:\PDF_Extractor_medical_assignment/
+│
+├── backend/                       # BACKEND SERVICE FOLDER
+│   ├── app/                       # FastAPI Application Package
+│   │   ├── main.py                # Server entrypoint & static mounting
+│   │   ├── api/                   # API routes & dependency injection
+│   │   ├── config/                # Pydantic Settings configuration
+│   │   ├── ingestion/             # PDF loading, text, table & Tesseract OCR
+│   │   ├── preprocessing/         # Text cleaner, normalizers & section chunker
+│   │   ├── extraction/            # 4-Pass extraction pipeline & field extractors
+│   │   ├── llm/                   # LLM Provider Abstraction (Gemini, Groq, Mock)
+│   │   ├── schemas/               # Pydantic v2 QMS Schemas
+│   │   ├── validation/            # Deterministic validator & confidence engine
+│   │   ├── retrieval/             # SentenceTransformers & vector store index
+│   │   ├── services/              # Policy Service & output auto-persister
+│   │   └── utils/                 # Logging, file & JSON serialization utilities
+│   ├── tests/                     # Unit & Integration Pytest Suite
+│   ├── scripts/                   # Evaluation runner script (evaluate.py)
+│   ├── requirements.txt           # Backend python dependencies manifest
+│   ├── .env                       # Environment configuration
+│   ├── .env.example               # Environment variables template
+│   └── Dockerfile                 # Docker container specification
+│
+├── frontend/                      # FRONTEND DASHBOARD FOLDER (Outside backend)
+│   ├── index.html                 # Glassmorphism Dashboard UI HTML
+│   ├── styles.css                 # Custom CSS Design System
+│   └── app.js                     # Dashboard Frontend Logic & Visual Renderers
+│
+├── docs/                          # ARCHITECTURE DOCUMENTATION (Outside backend & frontend)
+│   └── architecture.md            # Detailed Architecture & Component Specifications
+│
+├── outputs/                       # DEDICATED PERSISTED QMS OUTPUTS (Outside backend & frontend)
+│   ├── 1Policy Copy_qms.json
+│   ├── GHI Policy_qms.json
+│   ├── Net Catalyst - GPA - Policy Copy - 2022-23_qms.json
+│   ├── olj4KTUo9B1546-1692687606_925469 - 00 GMC Renewal Policy 00_qms.json
+│   ├── Policy liberty 2022-2023_qms.json
+│   └── evaluation_results.json
+│
+├── data/                          # Input PDF benchmarks
+├── docker-compose.yml             # Docker Compose orchestration
+├── .gitignore                     # Git exclusion rules
+└── README.md                      # Comprehensive production documentation
 ```
 
 ---
@@ -163,150 +213,12 @@ Calculates multi-signal confidence scores for every field and serializes the com
 
 ---
 
-## 📷 OCR & Table Strategy
-
-### OCR Trigger Condition
-Insurance PDFs often mix vector pages with scanned annexures or image-based signatures. 
-- For every page, `TextExtractor` checks character count.
-- If native text count is **< 30 characters**, the page is marked as scanned/low-text, rendered to a high-DPI image, and processed via **RapidOCR** (ONNX runtime).
-- If native text is present, PyMuPDF native extraction is used for maximum speed.
-
-### Table Extraction & Grid Association
-Insurance benefits are frequently presented in tables (e.g. Care Health policy schedules).
-- `TableExtractor` uses `pdfplumber` to extract table boundary boxes.
-- Converts grid cells into clean Markdown tables:
-  ```text
-  | Particulars | Details |
-  | --- | --- |
-  | Room Rent | Maximum eligibility 2% of Sum Insured |
-  | ICU | Maximum eligibility 4% of Sum Insured |
-  ```
-- Integrates markdown tables into page chunks so LLM extractors preserve row-column semantic associations.
-
----
-
-## 🎯 Confidence & Evidence Mechanism
-
-### Evidence Attribution
-Every extracted benefit field includes an `evidence` array containing:
-* `page`: 1-indexed page number in the original PDF.
-* `text`: Verbatim quote or table row excerpt from the document.
-
-### Semantic Status Rules
-| Status Code | Meaning | Example Document Context |
-| :--- | :--- | :--- |
-| `COVERED` | Benefit is included or available | *"Room rent covered up to 2% of SI"* |
-| `NOT_COVERED` | Explicit exclusion statement | *"OPD treatment is excluded from this policy"* |
-| `WAIVED_OFF` | Waiting period or condition waived | *"30-day initial waiting period is waived off"* |
-| `NOT_FOUND` | Benefit is unmentioned in PDF | Document does not mention LGBTQ+ coverage |
-| `UNKNOWN` | Ambiguous clause | Text mentioned benefit without clear terms |
-
-### Confidence Calculation Formula
-Confidence score $C \in [0.0, 1.0]$ is computed as:
-$$C = \text{BaseStatusScore} (0.4) + \text{ValidEvidenceBonus} (0.4) + \text{StructuredParamsBonus} (0.2)$$
-If status is `NOT_FOUND`, $C = 0.0$.
-
----
-
-## 🛠️ Technology Stack & Selection Rationale
-
-| Category | Technology | Rationale |
-| :--- | :--- | :--- |
-| **Backend Framework** | **FastAPI 0.110+** | High-performance async Python framework with automatic OpenAPI docs. |
-| **Data Validation** | **Pydantic v2** | Rust-accelerated strict schema validation & serialization. |
-| **PDF Processing** | **PyMuPDF (fitz)** & **pdfplumber** | PyMuPDF handles fast rendering; pdfplumber extracts tabular boundaries. |
-| **OCR Engine** | **RapidOCR (ONNX)** | Lightweight cross-platform OCR running without Tesseract binary installs. |
-| **Embeddings & Vector Search** | **SentenceTransformers** & **FAISS** | Fast vector indexing (`all-MiniLM-L6-v2`) for semantic section retrieval. |
-| **LLM Provider Abstraction** | **Google Gemini / Groq / Mock** | Multi-provider fallback supporting structured JSON extraction. |
-| **Frontend UI** | **Vanilla HTML5 / CSS3 / JS** | Glassmorphism dashboard UI with zero heavy build pipeline requirements. |
-| **Test Engine** | **pytest** | Unit and integration test suite runner. |
-
----
-
-## 📁 Directory Structure
-
-```text
-e:\PDF_Extractor_medical_assignment/
-│
-├── app/
-│   ├── main.py                    # FastAPI application initialization & static file mounting
-│   ├── api/
-│   │   ├── routes.py              # API endpoints (/extract, /extract/batch, /health)
-│   │   └── dependencies.py        # Dependency injection providers
-│   ├── config/
-│   │   └── settings.py            # Pydantic BaseSettings environment loader
-│   ├── ingestion/
-│   │   ├── pdf_loader.py          # PDF document stream handler
-│   │   ├── text_extractor.py     # Native text & spatial coordinate extractor
-│   │   ├── table_extractor.py    # pdfplumber grid-to-markdown table parser
-│   │   ├── ocr.py                 # RapidOCR ONNX fallback engine
-│   │   └── document_processor.py  # InternalDoc aggregator
-│   ├── preprocessing/
-│   │   ├── cleaner.py             # Header/footer noise & reversed text cleaner
-│   │   ├── normalizer.py          # Currency, date, percentage & status normalizer
-│   │   ├── section_detector.py    # Generic semantic section classifier
-│   │   └── chunker.py             # Section & page-aware document chunker
-│   ├── extraction/
-│   │   ├── extractor.py           # Core Extraction Engine
-│   │   ├── prompts.py             # Provider-agnostic system & field prompts
-│   │   ├── field_extractors.py    # Specialized field-group extractors
-│   │   └── extraction_pipeline.py # 4-pass extraction orchestrator
-│   ├── llm/
-│   │   ├── base.py                # Base LLMProvider interface
-│   │   ├── gemini.py              # Gemini Provider (google-genai)
-│   │   ├── groq.py                # Groq Provider (groq SDK)
-│   │   ├── mock.py                # Smart deterministic Mock Provider
-│   │   └── factory.py             # Provider Factory
-│   ├── schemas/
-│   │   ├── policy.py              # Insurer, policy metadata & demographic schemas
-│   │   ├── benefits.py            # Benefit details & hospitalization schemas
-│   │   ├── evidence.py            # Evidence attribution schemas
-│   │   └── response.py            # Root QMS Policy Output schema
-│   ├── validation/
-│   │   ├── validator.py           # Deterministic validation rules
-│   │   ├── consistency.py         # Cross-field consistency verification
-│   │   └── confidence.py          # Transparent multi-signal confidence engine
-│   ├── retrieval/
-│   │   ├── embeddings.py          # SentenceTransformer encoder
-│   │   ├── vector_store.py        # FAISS in-memory similarity store
-│   │   └── retriever.py           # Semantic chunk retriever
-│   ├── services/
-│   │   └── policy_service.py      # High-level Policy Service & auto-persister
-│   └── utils/
-│       ├── logging.py             # Structured logging setup
-│       ├── file_utils.py          # Temp file & SHA-256 hash helpers
-│       └── json_utils.py          # Custom JSON serializer
-├── static/
-│   ├── index.html                 # Glassmorphism Web Dashboard HTML
-│   ├── styles.css                 # Custom CSS design system
-│   └── app.js                     # Dashboard frontend JS logic
-├── tests/
-│   ├── unit/                      # Unit tests (normalizer, validator)
-│   └── integration/               # Integration tests (full pipeline)
-├── outputs/                       # Dedicated folder for persisted QMS JSON outputs
-├── data/
-│   ├── input/                     # Upload directory
-│   └── output/                    # Evaluation benchmark outputs
-├── docs/
-│   └── architecture.md            # Comprehensive architecture documentation
-├── scripts/
-│   └── evaluate.py                # Evaluation runner script against sample PDFs
-├── .env                           # Local environment configuration
-├── .env.example                   # Environment template
-├── .gitignore                     # Git ignore rules
-├── requirements.txt               # Manifest of dependencies
-├── Dockerfile                     # Docker container specification
-├── docker-compose.yml             # Docker Compose orchestration
-└── README.md                      # Comprehensive production documentation
-```
-
----
-
 ## 💻 Setup & Installation
 
 ### 1. Prerequisites
 * Python 3.11+
 * Git
+* Tesseract OCR binary (Optional if using text-native PDFs)
 
 ### 2. Installation Steps
 
@@ -324,18 +236,18 @@ python -m venv .venv
 # Linux/macOS:
 # source .venv/bin/activate
 
-# Install all dependencies
-pip install -r requirements.txt
+# Install backend dependencies
+pip install -r backend/requirements.txt
 ```
 
 ---
 
-## ⚙️ Environment Variables (`.env`)
+## ⚙️ Environment Variables (`backend/.env`)
 
-Copy `.env.example` to `.env`:
+Copy `backend/.env.example` to `backend/.env`:
 
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
 | Variable | Default Value | Description |
@@ -359,7 +271,7 @@ cp .env.example .env
 
 ### Start FastAPI Development Server
 ```bash
-py -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+py -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Open your browser and navigate to:
@@ -472,7 +384,7 @@ The final output is formatted into a standardized QMS JSON structure:
 
 ## 📂 Dedicated Outputs Folder
 
-All extractions automatically persist a timestamped copy of their QMS JSON output into the dedicated [`outputs/`](file:///e:/PDF_Extractor_medical_assignment/outputs) folder:
+All extractions automatically persist a timestamped copy of their QMS JSON output into the dedicated top-level [`outputs/`](file:///e:/PDF_Extractor_medical_assignment/outputs) folder:
 
 - [`1Policy Copy_qms.json`](file:///e:/PDF_Extractor_medical_assignment/outputs/1Policy%20Copy_qms.json)
 - [`GHI Policy_qms.json`](file:///e:/PDF_Extractor_medical_assignment/outputs/GHI%20Policy_qms.json)
@@ -488,15 +400,15 @@ All extractions automatically persist a timestamped copy of their QMS JSON outpu
 ### 1. Run Evaluation Benchmark Script
 Evaluates all sample PDFs in the workspace:
 ```bash
-py scripts/evaluate.py
+py backend/scripts/evaluate.py
 ```
 * **Evaluation Result**: 5 / 5 PDF documents extracted successfully (**100% success rate**).
 
 ### 2. Run Pytest Test Suite
 ```bash
-py -m pytest tests/ -v
+py -m pytest backend/tests/ -v
 ```
-* **Test Result**: `6 passed in 11.99s` (**100% test pass rate**).
+* **Test Result**: `6 passed in 36.69s` (**100% test pass rate**).
 
 ---
 
@@ -505,22 +417,8 @@ py -m pytest tests/ -v
 ### Build & Run Container
 
 ```bash
-docker build -t gmc-doc-intel .
-docker run -p 8000:8000 -e GEMINI_API_KEY="your_api_key" gmc-doc-intel
-```
-
-### Docker Compose
-```bash
 docker-compose up --build
 ```
-
----
-
-## 🚀 Known Limitations & Future Improvements
-
-1. **Human-in-the-Loop Review**: Add a UI review interface for compliance managers to edit low-confidence fields before writing to production database systems.
-2. **Layout LM Vision Models**: Integrate multimodal document models (e.g. LayoutLMv3 or Gemini 2.5 Flash Vision) for visual bounding-box evidence highlights on PDF preview canvases.
-3. **Async Queue Workers**: Scale ingestion via Celery / Redis workers for large batch processing (>1,000 PDF documents).
 
 ---
 
