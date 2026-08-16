@@ -137,7 +137,6 @@ flowchart TD
 ## 📁 Directory Structure & Modular Separation
 
 ```text
-e:\PDF_Extractor_medical_assignment/
 │
 ├── backend/                       # BACKEND SERVICE FOLDER
 │   ├── app/                       # FastAPI Application Package
@@ -205,7 +204,6 @@ For each functional benefit group, the system queries vector-indexed chunks to e
 ### Pass 3: Deterministic Validation
 Applies rule-based sanity checks:
 * **Date Chronology**: Verifies `start_date < end_date`.
-* **Demographics Sanity**: Verifies `employees_count + spouses_count + children_count + parents_count == total_lives_covered`.
 * **Range Bounds**: Verifies percentages are within `[0.0, 100.0]`.
 
 ### Pass 4: Confidence Scoring & Assembly
@@ -307,77 +305,6 @@ curl -X POST "http://localhost:8000/api/v1/policies/extract/batch" \
 ### 3. Health Check (`GET /api/v1/health`)
 ```bash
 curl -X GET "http://localhost:8000/api/v1/health"
-```
-
----
-
-## 📊 QMS JSON Schema Structure
-
-The final output is formatted into a standardized QMS JSON structure:
-
-```json
-{
-  "document_metadata": {
-    "document_id": "doc_b25b9244855d",
-    "filename": "1.Policy Copy.pdf",
-    "page_count": 4,
-    "file_size_bytes": 280614,
-    "ocr_pages_count": 0,
-    "pages_processed": [1, 2, 3, 4]
-  },
-  "insurer_details": {
-    "insurer_name": "Care Health Insurance Ltd.",
-    "tpa_name": null,
-    "confidence": 0.92,
-    "evidence": [
-      { "page": 1, "text": "Care Health Insurance Ltd." }
-    ]
-  },
-  "policy_metadata": {
-    "policy_number": "41201895",
-    "policyholder_name": "AAYUV TECHNOLOGIES PRIVATE LIMITED",
-    "start_date": "2022-04-02",
-    "end_date": "2023-04-01",
-    "premium_amount": { "amount": 412373.0, "currency": "INR" },
-    "confidence": 0.88
-  },
-  "hospitalization": {
-    "room_rent": {
-      "status": "COVERED",
-      "limit": null,
-      "percentage": 2.0,
-      "days": null,
-      "conditions": "Maximum eligibility for Normal Hospitalization: 2% of Sum Insured",
-      "confidence": 0.85,
-      "evidence": [
-        { "page": 2, "text": "Room Rent Sum Insured Maximum eligibility for Normal Hospitalization" }
-      ]
-    },
-    "icu": {
-      "status": "COVERED",
-      "percentage": 4.0,
-      "conditions": "Maximum eligibility for ICU Hospitalization: 4% of Sum Insured",
-      "confidence": 0.85
-    }
-  },
-  "maternity": {
-    "waiting_period_9_months": { "status": "WAIVED_OFF", "days": 0, "confidence": 0.85 },
-    "baby_day_one_cover": { "status": "COVERED", "confidence": 0.8 }
-  },
-  "waiting_periods": {
-    "initial_30_days": { "status": "WAIVED_OFF", "days": 0, "confidence": 0.8 },
-    "pre_existing_diseases_ped": { "status": "WAIVED_OFF", "confidence": 0.8 }
-  },
-  "validation_warnings": [],
-  "extraction_metadata": {
-    "extraction_timestamp": "2026-08-16T14:45:00.000Z",
-    "pipeline_version": "1.0.0",
-    "provider_used": "mock",
-    "model_used": "deterministic-doc-intel-v1",
-    "overall_confidence": 0.62,
-    "processing_duration_seconds": 0.25
-  }
-}
 ```
 
 ---
