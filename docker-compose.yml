@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  gmc-doc-intel:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=GMC Document Intelligence System
+      - APP_ENV=production
+      - DEBUG=false
+      - LLM_PROVIDER=gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

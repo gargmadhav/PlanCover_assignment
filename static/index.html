@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMC Policy Document Intelligence Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="background-globes">
+        <div class="globe globe-1"></div>
+        <div class="globe globe-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">🛡️</div>
+                <div>
+                    <h1>GMC Document Intelligence</h1>
+                    <p class="subtitle">Enterprise AI Policy Extraction & Evidence Attribution Engine</p>
+                </div>
+            </div>
+            <div class="header-badges">
+                <span class="status-badge" id="system-status">● Engine Ready</span>
+                <span class="provider-badge" id="provider-info">LLM: Initializing...</span>
+            </div>
+        </header>
+
+        <!-- UPLOAD SECTION -->
+        <section class="upload-section">
+            <div class="drop-zone" id="drop-zone">
+                <div class="drop-icon">📄</div>
+                <h3>Drag & Drop GMC/GPA Insurance Policy PDF</h3>
+                <p>Supports native text, image scans (OCR), multi-page tables, and multi-tier structures</p>
+                <input type="file" id="file-input" accept=".pdf" class="hidden-input">
+                <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Browse PDF File</button>
+            </div>
+        </section>
+
+        <!-- LOADING INDICATOR -->
+        <div class="loading-container hidden" id="loading-container">
+            <div class="spinner"></div>
+            <h3 id="loading-step">Running 4-Pass Document Intelligence Pipeline...</h3>
+            <p>Ingesting → OCR & Tables → Semantic Chunking → Structured Extraction → Evidence & Validation</p>
+        </div>
+
+        <!-- RESULTS DASHBOARD -->
+        <main class="dashboard hidden" id="dashboard">
+            <!-- TOP METRICS CARD -->
+            <div class="card overview-card">
+                <div class="card-header">
+                    <h2>Document Summary</h2>
+                    <div class="card-actions">
+                        <button class="btn btn-outline" id="download-json-btn">⬇️ Download QMS JSON</button>
+                    </div>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">Detected Insurer</span>
+                        <span class="metric-value highlight" id="insurer-name">-</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">TPA / Servicing Office</span>
+                        <span class="metric-value" id="tpa-name">-</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Policy Number</span>
+                        <span class="metric-value mono" id="policy-number">-</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Policyholder</span>
+                        <span class="metric-value" id="policyholder-name">-</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Period of Insurance</span>
+                        <span class="metric-value" id="policy-period">-</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Extraction Confidence</span>
+                        <span class="metric-badge" id="overall-confidence">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABS & BENEFIT DETAILS -->
+            <div class="card content-card">
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="tab-hosp">Hospitalization & Room Rent</button>
+                    <button class="tab-btn" data-tab="tab-mat">Maternity Benefits</button>
+                    <button class="tab-btn" data-tab="tab-wait">Waiting Periods</button>
+                    <button class="tab-btn" data-tab="tab-other">Other Benefits</button>
+                    <button class="tab-btn" data-tab="tab-demo">Demographics & Structure</button>
+                    <button class="tab-btn" data-tab="tab-raw">QMS Raw JSON</button>
+                </div>
+
+                <div class="tab-content active" id="tab-hosp">
+                    <div class="benefits-grid" id="hosp-grid"></div>
+                </div>
+
+                <div class="tab-content" id="tab-mat">
+                    <div class="benefits-grid" id="mat-grid"></div>
+                </div>
+
+                <div class="tab-content" id="tab-wait">
+                    <div class="benefits-grid" id="wait-grid"></div>
+                </div>
+
+                <div class="tab-content" id="tab-other">
+                    <div class="benefits-grid" id="other-grid"></div>
+                </div>
+
+                <div class="tab-content" id="tab-demo">
+                    <div class="demographics-container" id="demo-container"></div>
+                </div>
+
+                <div class="tab-content" id="tab-raw">
+                    <pre class="json-viewer" id="json-viewer"></pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- EVIDENCE MODAL -->
+    <div class="modal hidden" id="evidence-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Source Document Evidence Attribution</h3>
+                <button class="close-btn" onclick="closeEvidenceModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
